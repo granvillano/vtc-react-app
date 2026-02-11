@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
@@ -8,7 +8,8 @@ import { SearchDestinationScreen, TripPreviewScreen, TripTrackingScreen } from '
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import { useAuth } from '../contexts/AuthContext';
-import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text, Platform } from 'react-native';
+import * as NavigationBar from 'expo-navigation-bar';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -32,6 +33,24 @@ const navigationTheme = {
  */
 export const RootNavigator: React.FC = () => {
     const { isAuthenticated, isApproved, isLoading, user } = useAuth();
+
+    // Ocultar la barra de navegación de Android y ponerla en overlay
+    useEffect(() => {
+        if (Platform.OS !== 'android') return;
+
+        const hideNavBar = async () => {
+            try {
+                await NavigationBar.setBehaviorAsync('overlay-swipe');
+                await NavigationBar.setPositionAsync('absolute');
+                await NavigationBar.setBackgroundColorAsync('transparent');
+                await NavigationBar.setVisibilityAsync('hidden');
+            } catch (error) {
+                console.warn('No se pudo ocultar la barra de navegación', error);
+            }
+        };
+
+        hideNavBar();
+    }, []);
 
     // Mostrar loading mientras se verifica autenticación
     if (isLoading) {

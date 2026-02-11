@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from '../types/navigation';
 import { theme } from '../theme';
 import { HomeMapScreen, ActivityScreen, ProfileScreen } from '../screens';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -11,17 +12,23 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
  * Home, Activity, Profile
  */
 export const MainTabNavigator: React.FC = () => {
+    const insets = useSafeAreaInsets();
+
+    const tabBarBaseHeight = theme.heights.tabBar;
+    const tabBarBottom = Math.max(insets.bottom, 8);
+
     return (
         <Tab.Navigator
             id="MainTabs"
             screenOptions={{
                 headerShown: false,
+                tabBarHideOnKeyboard: true,
                 tabBarStyle: {
                     backgroundColor: theme.colors.background.card,
                     borderTopColor: theme.colors.border.light,
                     borderTopWidth: 1,
-                    height: theme.heights.tabBar,
-                    paddingBottom: 8,
+                    height: tabBarBaseHeight + tabBarBottom,
+                    paddingBottom: tabBarBottom,
                     paddingTop: 8,
                     ...theme.shadows.lg,
                 },

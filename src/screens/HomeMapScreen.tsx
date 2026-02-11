@@ -1,9 +1,11 @@
-import React, { useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, StatusBar } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, Text, StatusBar, Alert } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import BottomSheet from '@gorhom/bottom-sheet';
+import * as Location from 'expo-location';
 
 import { theme } from '../theme';
 import { Card } from '../components/common';
@@ -18,6 +20,60 @@ type HomeMapScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>
 export const HomeMapScreen: React.FC = () => {
     const navigation = useNavigation<HomeMapScreenNavigationProp>();
     const bottomSheetRef = useRef<BottomSheet>(null);
+    const mapRef = useRef<MapView>(null);
+
+    const [userRegion, setUserRegion] = useState(initialRegion);
+    const [hasLocation, setHasLocation] = useState(false);
+    const [locationLabel, setLocationLabel] = useState('');
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                if (status !== 'granted') {
+                    Alert.alert(
+                        'Permiso de ubicación',
+                        'Activa el permiso para centrarte en el mapa.'
+                    );
+                    return;
+                }
+
+                const position = await Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.High,
+                });
+                const region = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                };
+
+                setUserRegion(region);
+                setHasLocation(true);
+
+                try {
+                    const [address] = await Location.reverseGeocodeAsync({
+                        latitude: region.latitude,
+                        longitude: region.longitude,
+                    });
+
+                    const labelParts = [
+                        address?.street || address?.name,
+                        address?.city || address?.district || address?.subregion,
+                        address?.country,
+                    ].filter(Boolean);
+
+                    setLocationLabel(labelParts.join(', ') || 'Ubicación detectada');
+                } catch (geoError) {
+                    setLocationLabel('Ubicación detectada');
+                }
+
+                mapRef.current?.animateToRegion(region, 600);
+            } catch (error) {
+                console.error('Error obteniendo ubicación', error);
+            }
+        })();
+    }, []);
 
     // Región inicial del mapa (Madrid como ejemplo)
     const initialRegion = {
@@ -35,10 +91,64 @@ export const HomeMapScreen: React.FC = () => {
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
 
-            {/* Mapa no disponible en Expo Go */}
-            <View style={styles.mapPlaceholder}>
-                <Text style={styles.placeholderText}>Mapa no disponible en Expo Go</Text>
-            </View>
+            <MapView
+                ref={mapRef}
+                style={styles.map}
+                initialRegion={initialRegion}
+                region={hasLocation ? userRegion : undefined}
+                showsUserLocation
+                showsMyLocationButton={false}
+                toolbarEnabled={false}
+                onPress={() => {
+                    if (hasLocation) {
+                        mapRef.current?.animateToRegion(userRegion, 500);
+                    }
+                }}
+            >
+                {hasLocation && (
+                    <Marker
+                        coordinate={userRegion}
+                        title="Tu ubicación"
+                        description={
+                            locationLabel ||
+                            `${userRegion.latitude.toFixed(4)}, ${userRegion.longitude.toFixed(4)}`
+                        }
+                        pinColor={theme.colors.primary.gold}
+                    />
+                )}
+                {!hasLocation && (
+                    <Marker
+                        coordinate={{
+                            latitude: initialRegion.latitude,
+                            longitude: initialRegion.longitude,
+                        }}
+                        title="Madrid"
+                    />
+                )}
+            </MapView>
+
+            <TouchableOpacity
+                style={styles.locationButton}
+                onPress={() => {
+                    if (hasLocation) {
+                        mapRef.current?.animateToRegion(userRegion, 500);
+                    }
+                }}
+                activeOpacity={0.8}
+            >
+                <Text style={styles.locationButtonText}>Mi ubicación</Text>
+            </TouchableOpacity>
+
+            {hasLocation && (
+                <View style={styles.locationBadge}>
+                    <Text style={styles.locationBadgeText}>
+                        {locationLabel || 'Ubicación detectada'}
+                    </Text>
+                    <Text style={styles.locationBadgeSubtext}>
+                        {userRegion.latitude.toFixed(4)}, {userRegion.longitude.toFixed(4)}
+                    </Text>
+                </View>
+            )}
 
             {/* Header con logo/marca */}
             <SafeAreaView style={styles.header}>
@@ -90,24 +200,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background.primary,
-    },
-
-    mapPlaceholder: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: theme.colors.background.secondary,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
-    placeholderText: {
-        ...theme.textStyles.h4,
-        color: theme.colors.text.secondary,
-        marginBottom: theme.spacing.xs,
-    },
-
-    placeholderSubtext: {
-        ...theme.textStyles.caption,
-        color: theme.colors.text.tertiary,
     },
 
     map: {
@@ -205,6 +297,46 @@ const styles = StyleSheet.create({
     quickActionText: {
         ...theme.textStyles.caption,
         color: theme.colors.text.secondary,
+    },
+
+    locationButton: {
+        position: 'absolute',
+        bottom: theme.spacing.xxl,
+        right: theme.spacing.lg,
+        backgroundColor: theme.colors.background.secondary,
+        borderRadius: theme.borderRadius.lg,
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.sm,
+        borderWidth: 1,
+        borderColor: theme.colors.border.light,
+    },
+
+    locationButtonText: {
+        ...theme.textStyles.caption,
+        color: theme.colors.text.primary,
+        fontWeight: theme.fontWeight.semibold,
+    },
+
+    locationBadge: {
+        position: 'absolute',
+        top: theme.spacing.xl,
+        right: theme.spacing.lg,
+        backgroundColor: theme.colors.background.secondary,
+        borderRadius: theme.borderRadius.lg,
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.xs,
+        borderWidth: 1,
+        borderColor: theme.colors.border.light,
+    },
+
+    locationBadgeText: {
+        ...theme.textStyles.caption,
+        color: theme.colors.text.primary,
+    },
+
+    locationBadgeSubtext: {
+        ...theme.textStyles.caption,
+        color: theme.colors.text.tertiary,
     },
 });
 
