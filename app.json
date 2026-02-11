@@ -1,0 +1,49 @@
+{
+    "expo": {
+        "name": "VTC Premium Clean",
+        "slug": "vtc-premium-clean",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/icon.png",
+        "userInterfaceStyle": "dark",
+        "jsEngine": "jsc",
+        "splash": {
+            "image": "./assets/splash-icon.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#0A0A0A"
+        },
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.vtcpremium.app",
+            "config": {
+                "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+            }
+        },
+        "android": {
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/adaptive-icon.png",
+                "backgroundColor": "#0A0A0A"
+            },
+            "package": "com.vtcpremium.app",
+            "edgeToEdgeEnabled": true,
+            "predictiveBackGestureEnabled": false,
+            "config": {
+                "googleMaps": {
+                    "apiKey": "YOUR_GOOGLE_MAPS_API_KEY_HERE"
+                }
+            },
+            "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+        },
+        "web": {
+            "favicon": "./assets/favicon.png"
+        },
+        "plugins": [
+            [
+                "expo-location",
+                {
+                    "locationAlwaysAndWhenInUsePermission": "Permitir acceso a tu ubicación para encontrar conductores cercanos."
+                }
+            ]
+        ]
+    }
+}
