@@ -21,6 +21,12 @@ export const HomeMapScreen: React.FC = () => {
     const navigation = useNavigation<HomeMapScreenNavigationProp>();
     const bottomSheetRef = useRef<BottomSheet>(null);
     const mapRef = useRef<MapView>(null);
+    const initialRegion = {
+        latitude: 40.4168,
+        longitude: -3.7038,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+    };
 
     const [userRegion, setUserRegion] = useState(initialRegion);
     const [hasLocation, setHasLocation] = useState(false);
@@ -74,14 +80,6 @@ export const HomeMapScreen: React.FC = () => {
             }
         })();
     }, []);
-
-    // Región inicial del mapa (Madrid como ejemplo)
-    const initialRegion = {
-        latitude: 40.4168,
-        longitude: -3.7038,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-    };
 
     const handleSearchPress = () => {
         navigation.navigate('SearchDestination');
@@ -301,7 +299,7 @@ const styles = StyleSheet.create({
 
     locationButton: {
         position: 'absolute',
-        bottom: theme.spacing.xxl,
+        bottom: theme.spacing['2xl'],
         right: theme.spacing.lg,
         backgroundColor: theme.colors.background.secondary,
         borderRadius: theme.borderRadius.lg,

@@ -19,7 +19,9 @@ if (typeof global !== 'undefined') {
         const message = reason?.message || String(reason);
         const stack = reason?.stack;
         console.error('UNHANDLED PROMISE REJECTION:', { message, stack, reason });
-        if (origHandler) origHandler(event);
+        if (typeof origHandler === 'function') {
+            origHandler.call(globalThis as unknown as Window, event as any);
+        }
     };
 }
 import React from 'react';
