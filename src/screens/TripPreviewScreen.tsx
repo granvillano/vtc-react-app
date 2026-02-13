@@ -1,115 +1,243 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, ScrollView, StatusBar } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+    View,
+    StyleSheet,
+    TouchableOpacity,
+    Text,
+    ScrollView,
+    StatusBar,
+    Modal,
+} from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { theme } from '../theme';
-import { Button, Card } from '../components/common';
+import { Button, Card, Input } from '../components/common';
 import { RootStackParamList } from '../types/navigation';
+import { tripService, ServiceType } from '../services/tripService';
+import { APIError } from '../services/api.config';
+import { getVehicleBaseCoordinates, Coordinates } from '../services/mapboxService';
+
+const BASE_ORIGIN_LABEL = 'Base central VTC Premium Navarra';
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^\d{2}:\d{2}$/;
 
 type TripPreviewRouteProp = RouteProp<RootStackParamList, 'TripPreview'>;
 type TripPreviewNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-type VehicleType = 'economy' | 'premium' | 'luxury';
-
-interface VehicleOption {
-    type: VehicleType;
-    name: string;
-    description: string;
-    price: number;
-    eta: number; // minutos
-    capacity: number;
-}
-
-/**
- * Pantalla de resumen del viaje
- * Muestra distancia, tiempo, precio y opciones de vehículo
- */
 export const TripPreviewScreen: React.FC = () => {
     const navigation = useNavigation<TripPreviewNavigationProp>();
     const route = useRoute<TripPreviewRouteProp>();
     const { origin, destination } = route.params;
+    const [estimateData, setEstimateData] = useState<
+        Awaited<ReturnType<typeof tripService.estimateTrip>>['data'] | null
+    >(null);
+    const [loadingEstimate, setLoadingEstimate] = useState(false);
+    const [estimateError, setEstimateError] = useState<string | null>(null);
+    const [baseOrigin, setBaseOrigin] = useState<Coordinates | null>(null);
+    const [pickupDate, setPickupDate] = useState(() => new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+    const [pickupTime, setPickupTime] = useState(() => new Date().toTimeString().slice(0, 5)); // HH:MM
+    const [showTimePicker, setShowTimePicker] = useState(false);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [dateDraft, setDateDraft] = useState<Date | null>(null);
+    const [serviceType, setServiceType] = useState<ServiceType>('one_way');
+    const [showHoursPicker, setShowHoursPicker] = useState(false);
+    const [hoursNeeded, setHoursNeeded] = useState(1);
+    const [canEstimate, setCanEstimate] = useState(false);
 
-    const [selectedVehicle, setSelectedVehicle] = useState<VehicleType>('premium');
+    useEffect(() => {
+        let isMounted = true;
 
-    // Mock de opciones de vehículos (en producción vendrían del backend)
-    const vehicleOptions: VehicleOption[] = [
-        {
-            type: 'economy',
-            name: 'Economy',
-            description: 'Opción económica',
-            price: 25.5,
-            eta: 5,
-            capacity: 4,
-        },
-        {
-            type: 'premium',
-            name: 'Premium',
-            description: 'Confort superior',
-            price: 35.0,
-            eta: 3,
-            capacity: 4,
-        },
-        {
-            type: 'luxury',
-            name: 'Luxury',
-            description: 'Máximo lujo',
-            price: 55.0,
-            eta: 2,
-            capacity: 3,
-        },
+        const loadBaseOrigin = async () => {
+            try {
+                const base = await getVehicleBaseCoordinates();
+                if (isMounted && base) {
+                    setBaseOrigin(base);
+                }
+            } catch (error) {
+                console.error('❌ Error obteniendo origen base', error);
+            }
+        };
+
+        loadBaseOrigin();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadEstimate = async () => {
+            try {
+                setLoadingEstimate(true);
+                setEstimateError(null);
+
+                if (!canEstimate) {
+                    setEstimateData(null);
+                    setEstimateError(null);
+                    return;
+                }
+
+                if (!DATE_RE.test(pickupDate) || !TIME_RE.test(pickupTime)) {
+                    setEstimateError('Introduce fecha (YYYY-MM-DD) y hora (HH:MM) válidas');
+                    setEstimateData(null);
+                    return;
+                }
+
+                const originLabel = baseOrigin
+                    ? `${baseOrigin.latitude},${baseOrigin.longitude}`
+                    : origin.address || `${origin.latitude},${origin.longitude}`;
+
+                const destinationLabel =
+                    destination.address || `${destination.latitude},${destination.longitude}`;
+
+                if (serviceType === 'hourly' && (!hoursNeeded || hoursNeeded <= 0)) {
+                    setEstimateError('Selecciona cuántas horas necesitas.');
+                    setEstimateData(null);
+                    return;
+                }
+
+                const requestPayload = {
+                    origin: originLabel,
+                    destination: destinationLabel,
+                    pickupDate,
+                    pickupTime,
+                    numberOfPassengers: 1,
+                    serviceType,
+                    numberOfHours: serviceType === 'hourly' ? hoursNeeded : undefined,
+                    supplements: [],
+                };
+
+                console.log('🚀 Enviando estimateTrip', requestPayload);
+
+                const estimate = await tripService.estimateTrip(requestPayload);
+
+                if (!isMounted) return;
+
+                setEstimateData(estimate.data);
+            } catch (error) {
+                console.error('❌ Error calculando estimación de viaje', error);
+                if (isMounted) {
+                    if (error instanceof APIError && error.data?.message) {
+                        setEstimateError(error.data.message);
+                    } else {
+                        setEstimateError('No se pudo calcular la estimación del viaje');
+                    }
+                }
+            } finally {
+                if (isMounted) {
+                    setLoadingEstimate(false);
+                }
+            }
+        };
+
+        loadEstimate();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [
+        baseOrigin,
+        origin,
+        destination,
+        pickupDate,
+        pickupTime,
+        serviceType,
+        hoursNeeded,
+        canEstimate,
+    ]);
+
+    const tripInfo = useMemo(() => {
+        const rawDistance =
+            estimateData?.distances?.distanceTripKm ??
+            estimateData?.distances?.distanceBaseToDestination ??
+            estimateData?.distances?.distancePickupToDestination ??
+            estimateData?.distances?.totalDistance;
+
+        const distanceKm = rawDistance
+            ? `${parseFloat(rawDistance.toString()).toFixed(2)} km`
+            : '—';
+
+        const rawDuration =
+            estimateData?.distances?.estimatedDuration ??
+            estimateData?.distances?.estimatedDurationMin;
+        const durationMin = rawDuration ? Math.ceil(rawDuration) : null;
+        const durationText = durationMin ? `${durationMin} min` : '—';
+
+        return {
+            distance: distanceKm,
+            duration: durationText,
+        };
+    }, [estimateData]);
+
+    const pricingInfo = useMemo(() => {
+        const breakdown = estimateData?.pricing?.priceBreakdown || [];
+        const total = estimateData?.pricing?.total;
+        return {
+            breakdown,
+            total,
+            baseTariff: estimateData?.pricing?.baseTariff,
+            horario: estimateData?.pricing?.horario,
+            distanceAppliedKm: estimateData?.pricing?.distanceAppliedKm,
+        };
+    }, [estimateData]);
+
+    const formatCurrency = (amount: string | number | undefined | null) => {
+        if (amount === undefined || amount === null) return '—';
+        const numeric = typeof amount === 'string' ? parseFloat(amount) : amount;
+        if (Number.isNaN(numeric)) return '—';
+        return `${numeric.toFixed(2)} €`;
+    };
+
+    const serviceTypeOptions: Array<{ value: ServiceType; label: string }> = [
+        { value: 'one_way', label: 'Solo ida' },
+        { value: 'round_trip', label: 'Ida y vuelta' },
+        { value: 'hourly', label: 'Servicio por horas' },
+        { value: 'daily', label: 'Servicio por días' },
     ];
 
-    // Mock de información del viaje
-    const tripInfo = {
-        distance: '12.5 km',
-        duration: '18 min',
-    };
+    const originDisplayLabel = baseOrigin ? BASE_ORIGIN_LABEL : origin.address || 'Tu ubicación';
+
+    const pickerBaseDate = useMemo(() => {
+        const parsed = new Date(pickupDate);
+        return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+    }, [pickupDate]);
+
+    const timeOptions = useMemo(() => {
+        const slots: string[] = [];
+        for (let hour = 0; hour < 24; hour += 1) {
+            for (let minute = 0; minute < 60; minute += 15) {
+                const h = hour.toString().padStart(2, '0');
+                const m = minute.toString().padStart(2, '0');
+                slots.push(`${h}:${m}`);
+            }
+        }
+        return slots;
+    }, []);
+
+    const hourOptions = useMemo(() => Array.from({ length: 12 }, (_v, idx) => idx + 1), []);
 
     const handleConfirmTrip = () => {
         // TODO: Integrar con backend para crear el viaje
-        console.log('Confirming trip with vehicle:', selectedVehicle);
+        console.log('Confirming trip', {
+            origin: originDisplayLabel,
+            destination: destination.address || `${destination.latitude},${destination.longitude}`,
+            pickupDate,
+            pickupTime,
+            serviceType,
+            hours: hoursNeeded,
+        });
 
-        // Navegar a seguimiento del viaje
         navigation.navigate('TripTracking', { tripId: 'mock-trip-id' });
-    };
-
-    const renderVehicleOption = (option: VehicleOption) => {
-        const isSelected = selectedVehicle === option.type;
-
-        return (
-            <TouchableOpacity
-                key={option.type}
-                onPress={() => setSelectedVehicle(option.type)}
-                activeOpacity={0.7}
-            >
-                <Card
-                    variant={isSelected ? 'outlined' : 'default'}
-                    padding="md"
-                    style={[styles.vehicleCard, isSelected && styles.vehicleCardSelected]}
-                >
-                    <View style={styles.vehicleInfo}>
-                        <View style={styles.vehicleIcon} />
-                        <View style={styles.vehicleDetails}>
-                            <Text style={styles.vehicleName}>{option.name}</Text>
-                            <Text style={styles.vehicleDescription}>{option.description}</Text>
-                            <Text style={styles.vehicleEta}>Llega en {option.eta} min</Text>
-                        </View>
-                        <View style={styles.vehiclePrice}>
-                            <Text style={styles.priceAmount}>{option.price.toFixed(2)}€</Text>
-                        </View>
-                    </View>
-                </Card>
-            </TouchableOpacity>
-        );
     };
 
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" />
-
-            {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity
                     style={styles.backButton}
@@ -125,7 +253,6 @@ export const TripPreviewScreen: React.FC = () => {
                 contentContainerStyle={styles.contentContainer}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Información del trayecto */}
                 <Card
                     variant="elevated"
                     padding="lg"
@@ -138,7 +265,7 @@ export const TripPreviewScreen: React.FC = () => {
                                 style={styles.routeAddress}
                                 numberOfLines={1}
                             >
-                                {origin.address || 'Tu ubicación'}
+                                {originDisplayLabel}
                             </Text>
                         </View>
 
@@ -166,29 +293,193 @@ export const TripPreviewScreen: React.FC = () => {
                             <Text style={styles.tripDetailValue}>{tripInfo.duration}</Text>
                         </View>
                     </View>
+
+                    {loadingEstimate && (
+                        <Text style={styles.helperText}>Calculando ruta y precio...</Text>
+                    )}
+                    {estimateError && <Text style={styles.errorText}>{estimateError}</Text>}
                 </Card>
-
-                {/* Opciones de vehículo */}
-                <View style={styles.vehiclesSection}>
-                    <Text style={styles.sectionTitle}>Elige tu vehículo</Text>
-                    <View style={styles.vehiclesList}>
-                        {vehicleOptions.map(renderVehicleOption)}
-                    </View>
-                </View>
-
-                {/* Información adicional */}
                 <Card
                     variant="default"
-                    padding="md"
-                    style={styles.infoCard}
+                    padding="lg"
+                    style={styles.datetimeCard}
+                >
+                    <Text style={styles.sectionTitle}>Fecha y hora del viaje</Text>
+                    <View style={styles.datetimeRow}>
+                        <View style={styles.datetimeField}>
+                            <Text style={styles.datetimeLabel}>Fecha</Text>
+                            <TouchableOpacity
+                                onPress={() => {
+                                    setDateDraft(pickerBaseDate);
+                                    setShowDatePicker(true);
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <Input
+                                    value={pickupDate}
+                                    editable={false}
+                                    pointerEvents="none"
+                                    placeholder="YYYY-MM-DD"
+                                />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={styles.datetimeSpacer} />
+                        <View style={styles.datetimeField}>
+                            <Text style={styles.datetimeLabel}>Hora</Text>
+                            <TouchableOpacity
+                                onPress={() => setShowTimePicker(true)}
+                                activeOpacity={0.7}
+                            >
+                                <Input
+                                    value={pickupTime}
+                                    editable={false}
+                                    pointerEvents="none"
+                                    placeholder="HH:MM"
+                                />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                    <Text style={styles.helperText}>
+                        Se recalcula precio y ruta al cambiar fecha u hora.
+                    </Text>
+                    {!canEstimate && (
+                        <Text style={styles.helperText}>Selecciona la fecha para calcular.</Text>
+                    )}
+                </Card>
+
+                <Card
+                    variant="default"
+                    padding="lg"
+                    style={styles.serviceCard}
+                >
+                    <Text style={styles.sectionTitle}>Tipo de servicio</Text>
+                    <View style={styles.serviceTypeChips}>
+                        {serviceTypeOptions.map((option) => {
+                            const selected = option.value === serviceType;
+                            return (
+                                <TouchableOpacity
+                                    key={option.value}
+                                    style={[
+                                        styles.serviceChip,
+                                        selected && styles.serviceChipSelected,
+                                    ]}
+                                    onPress={() => setServiceType(option.value)}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.serviceChipText,
+                                            selected && styles.serviceChipTextSelected,
+                                        ]}
+                                    >
+                                        {option.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </Card>
+
+                {serviceType === 'hourly' && (
+                    <Card
+                        variant="default"
+                        padding="lg"
+                        style={styles.hoursCard}
+                    >
+                        <Text style={styles.sectionTitle}>Duración del servicio</Text>
+                        <TouchableOpacity
+                            onPress={() => setShowHoursPicker(true)}
+                            activeOpacity={0.7}
+                        >
+                            <Input
+                                value={`${hoursNeeded} ${hoursNeeded === 1 ? 'hora' : 'horas'}`}
+                                editable={false}
+                                pointerEvents="none"
+                                placeholder="Selecciona horas"
+                            />
+                        </TouchableOpacity>
+                        <Text style={styles.helperText}>
+                            Indica cuántas horas necesitas el vehículo para calcular la tarifa.
+                        </Text>
+                    </Card>
+                )}
+
+                <Card
+                    variant="default"
+                    padding="lg"
+                    style={styles.pricingCard}
+                >
+                    <Text style={styles.sectionTitle}>Estimación de precio</Text>
+                    {!canEstimate ? (
+                        <Text style={styles.helperText}>
+                            Selecciona la fecha para ver el precio.
+                        </Text>
+                    ) : (
+                        <>
+                            <View style={styles.pricingMeta}>
+                                {pricingInfo.baseTariff ? (
+                                    <Text style={styles.metaText}>
+                                        Tarifa: {pricingInfo.baseTariff}
+                                    </Text>
+                                ) : null}
+                                {pricingInfo.horario ? (
+                                    <Text style={styles.metaText}>
+                                        Horario: {pricingInfo.horario}
+                                    </Text>
+                                ) : null}
+                                {pricingInfo.distanceAppliedKm ? (
+                                    <Text style={styles.metaText}>
+                                        Km aplicados: {pricingInfo.distanceAppliedKm?.toFixed(2)} km
+                                    </Text>
+                                ) : null}
+                            </View>
+
+                            {pricingInfo.breakdown.length > 0 ? (
+                                <View style={styles.breakdownList}>
+                                    {pricingInfo.breakdown.map(
+                                        (
+                                            item: { concept: string; amount: string | number },
+                                            index: number
+                                        ) => (
+                                            <View
+                                                key={`${item.concept}-${index}`}
+                                                style={styles.breakdownRow}
+                                            >
+                                                <Text style={styles.breakdownConcept}>
+                                                    {item.concept}
+                                                </Text>
+                                                <Text style={styles.breakdownAmount}>
+                                                    {formatCurrency(item.amount)}
+                                                </Text>
+                                            </View>
+                                        )
+                                    )}
+                                </View>
+                            ) : (
+                                <Text style={styles.helperText}>Aún sin desglosar precio.</Text>
+                            )}
+
+                            <View style={styles.totalRow}>
+                                <Text style={styles.totalLabel}>Total estimado</Text>
+                                <Text style={styles.totalAmount}>
+                                    {formatCurrency(pricingInfo.total)}
+                                </Text>
+                            </View>
+                        </>
+                    )}
+                </Card>
+
+                <Card
+                    variant="default"
+                    padding="lg"
+                    style={styles.datetimeCard}
                 >
                     <Text style={styles.infoText}>
-                        El precio puede variar según el tráfico y las condiciones del servicio
+                        El precio puede variar según el tráfico y las condiciones del servicio.
                     </Text>
                 </Card>
             </ScrollView>
 
-            {/* Botón de confirmación */}
             <View style={styles.footer}>
                 <Button
                     title="Confirmar viaje"
@@ -198,6 +489,137 @@ export const TripPreviewScreen: React.FC = () => {
                     onPress={handleConfirmTrip}
                 />
             </View>
+
+            <Modal
+                visible={showTimePicker}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowTimePicker(false)}
+            >
+                <View style={styles.timePickerOverlay}>
+                    <Card
+                        variant="default"
+                        padding="lg"
+                        style={styles.timePickerModal}
+                    >
+                        <Text style={styles.sectionTitle}>Selecciona la hora</Text>
+                        <ScrollView
+                            style={styles.timeList}
+                            contentContainerStyle={styles.timeListContent}
+                        >
+                            {timeOptions.map((time) => (
+                                <TouchableOpacity
+                                    key={time}
+                                    style={[
+                                        styles.timeOption,
+                                        time === pickupTime && styles.timeOptionSelected,
+                                    ]}
+                                    onPress={() => {
+                                        setPickupTime(time);
+                                        setShowTimePicker(false);
+                                    }}
+                                >
+                                    <Text style={styles.timeOptionText}>{time}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+
+                        <Button
+                            title="Cerrar"
+                            variant="secondary"
+                            onPress={() => setShowTimePicker(false)}
+                            style={styles.timePickerClose}
+                        />
+                    </Card>
+                </View>
+            </Modal>
+
+            <Modal
+                visible={showDatePicker}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowDatePicker(false)}
+            >
+                <View style={styles.timePickerOverlay}>
+                    <Card
+                        variant="default"
+                        padding="lg"
+                        style={styles.timePickerModal}
+                    >
+                        <Text style={styles.sectionTitle}>Selecciona la fecha</Text>
+                        <DateTimePicker
+                            value={dateDraft || pickerBaseDate}
+                            mode="date"
+                            display="spinner"
+                            onChange={(_event: DateTimePickerEvent, selectedDate?: Date) => {
+                                if (selectedDate) {
+                                    setDateDraft(selectedDate);
+                                }
+                            }}
+                            minimumDate={new Date()}
+                            textColor={theme.colors.text.primary}
+                        />
+
+                        <Button
+                            title="Seleccionar"
+                            variant="secondary"
+                            onPress={() => {
+                                const finalDate = dateDraft || pickerBaseDate;
+                                setPickupDate(finalDate.toISOString().slice(0, 10));
+                                setCanEstimate(true);
+                                setShowDatePicker(false);
+                            }}
+                            style={styles.timePickerClose}
+                        />
+                    </Card>
+                </View>
+            </Modal>
+
+            <Modal
+                visible={showHoursPicker}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowHoursPicker(false)}
+            >
+                <View style={styles.timePickerOverlay}>
+                    <Card
+                        variant="default"
+                        padding="lg"
+                        style={styles.timePickerModal}
+                    >
+                        <Text style={styles.sectionTitle}>Selecciona horas</Text>
+                        <ScrollView
+                            style={styles.timeList}
+                            contentContainerStyle={styles.timeListContent}
+                        >
+                            {hourOptions.map((hours) => (
+                                <TouchableOpacity
+                                    key={hours}
+                                    style={[
+                                        styles.timeOption,
+                                        hours === hoursNeeded && styles.timeOptionSelected,
+                                    ]}
+                                    onPress={() => {
+                                        setHoursNeeded(hours);
+                                        setShowHoursPicker(false);
+                                    }}
+                                >
+                                    <Text style={styles.timeOptionText}>
+                                        {hours} {hours === 1 ? 'hora' : 'horas'}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+
+                        <Button
+                            title="Cerrar"
+                            variant="secondary"
+                            onPress={() => setShowHoursPicker(false)}
+                            style={styles.timePickerClose}
+                        />
+                    </Card>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -215,6 +637,175 @@ const styles = StyleSheet.create({
         paddingVertical: theme.spacing.md,
         borderBottomWidth: 1,
         borderBottomColor: theme.colors.border.light,
+    },
+
+    datetimeCard: {
+        marginBottom: theme.spacing.lg,
+    },
+
+    pricingCard: {
+        marginBottom: theme.spacing.lg,
+    },
+
+    datetimeRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: theme.spacing.md,
+        marginTop: theme.spacing.md,
+    },
+
+    datetimeField: {
+        flex: 1,
+    },
+
+    datetimeLabel: {
+        ...theme.textStyles.bodySmall,
+        color: theme.colors.text.secondary,
+        marginBottom: theme.spacing.xs,
+    },
+
+    datetimeSpacer: {
+        width: theme.spacing.sm,
+    },
+
+    serviceCard: {
+        marginBottom: theme.spacing.lg,
+    },
+
+    hoursCard: {
+        marginBottom: theme.spacing.lg,
+    },
+
+    pricingMeta: {
+        gap: theme.spacing.xs,
+        marginBottom: theme.spacing.md,
+    },
+
+    metaText: {
+        ...theme.textStyles.bodySmall,
+        color: theme.colors.text.secondary,
+    },
+
+    breakdownList: {
+        gap: theme.spacing.sm,
+        marginBottom: theme.spacing.md,
+    },
+
+    breakdownRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+
+    breakdownConcept: {
+        ...theme.textStyles.body,
+        color: theme.colors.text.primary,
+        flex: 1,
+    },
+
+    breakdownAmount: {
+        ...theme.textStyles.body,
+        color: theme.colors.text.primary,
+        fontWeight: theme.fontWeight.semibold,
+    },
+
+    totalRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderTopWidth: 1,
+        borderTopColor: theme.colors.border.light,
+        paddingTop: theme.spacing.md,
+    },
+
+    totalLabel: {
+        ...theme.textStyles.bodyLarge,
+        color: theme.colors.text.primary,
+        fontWeight: theme.fontWeight.semibold,
+    },
+
+    totalAmount: {
+        ...theme.textStyles.h4,
+        color: theme.colors.primary.gold,
+        fontWeight: theme.fontWeight.bold,
+    },
+
+    serviceTypeChips: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: theme.spacing.sm,
+        marginTop: theme.spacing.md,
+    },
+
+    serviceChip: {
+        paddingVertical: theme.spacing.sm,
+        paddingHorizontal: theme.spacing.md,
+        borderRadius: theme.borderRadius.lg,
+        borderWidth: 1,
+        borderColor: theme.colors.border.light,
+        backgroundColor: theme.colors.background.secondary,
+    },
+
+    serviceChipSelected: {
+        borderColor: theme.colors.primary.gold,
+        backgroundColor: theme.colors.background.card,
+        ...theme.shadows.gold,
+    },
+
+    serviceChipText: {
+        ...theme.textStyles.body,
+        color: theme.colors.text.primary,
+    },
+
+    serviceChipTextSelected: {
+        color: theme.colors.primary.gold,
+        fontWeight: theme.fontWeight.semibold,
+    },
+
+    timePickerOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: theme.spacing.lg,
+    },
+
+    timePickerModal: {
+        width: '100%',
+        maxHeight: '70%',
+    },
+
+    timeList: {
+        marginTop: theme.spacing.md,
+        marginBottom: theme.spacing.md,
+    },
+
+    timeListContent: {
+        gap: theme.spacing.sm,
+        paddingBottom: theme.spacing.sm,
+    },
+
+    timeOption: {
+        paddingVertical: theme.spacing.sm,
+        paddingHorizontal: theme.spacing.md,
+        borderRadius: theme.borderRadius.md,
+        borderWidth: 1,
+        borderColor: theme.colors.border.light,
+    },
+
+    timeOptionSelected: {
+        borderColor: theme.colors.primary.gold,
+        backgroundColor: theme.colors.background.secondary,
+    },
+
+    timeOptionText: {
+        ...theme.textStyles.bodyLarge,
+        color: theme.colors.text.primary,
+        textAlign: 'center',
+    },
+
+    timePickerClose: {
+        marginTop: theme.spacing.sm,
     },
 
     backButton: {
@@ -255,6 +846,18 @@ const styles = StyleSheet.create({
     routePoint: {
         flexDirection: 'row',
         alignItems: 'center',
+    },
+
+    helperText: {
+        ...theme.textStyles.caption,
+        color: theme.colors.text.tertiary,
+        marginTop: theme.spacing.sm,
+    },
+
+    errorText: {
+        ...theme.textStyles.caption,
+        color: theme.colors.status.error,
+        marginTop: theme.spacing.sm,
     },
 
     originDot: {
@@ -317,73 +920,10 @@ const styles = StyleSheet.create({
         backgroundColor: theme.colors.border.light,
     },
 
-    vehiclesSection: {
-        marginBottom: theme.spacing.lg,
-    },
-
     sectionTitle: {
         ...theme.textStyles.h4,
         color: theme.colors.text.primary,
         marginBottom: theme.spacing.md,
-    },
-
-    vehiclesList: {
-        gap: theme.spacing.md,
-    },
-
-    vehicleCard: {
-        marginBottom: theme.spacing.sm,
-    },
-
-    vehicleCardSelected: {
-        borderColor: theme.colors.primary.gold,
-        borderWidth: 2,
-        ...theme.shadows.gold,
-    },
-
-    vehicleInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-
-    vehicleIcon: {
-        width: theme.iconSizes.xl,
-        height: theme.iconSizes.xl,
-        borderRadius: theme.borderRadius.md,
-        backgroundColor: theme.colors.background.secondary,
-        marginRight: theme.spacing.md,
-    },
-
-    vehicleDetails: {
-        flex: 1,
-    },
-
-    vehicleName: {
-        ...theme.textStyles.bodyLarge,
-        color: theme.colors.text.primary,
-        fontWeight: theme.fontWeight.semibold,
-    },
-
-    vehicleDescription: {
-        ...theme.textStyles.bodySmall,
-        color: theme.colors.text.secondary,
-        marginTop: theme.spacing.xs,
-    },
-
-    vehicleEta: {
-        ...theme.textStyles.caption,
-        color: theme.colors.text.tertiary,
-        marginTop: theme.spacing.xs,
-    },
-
-    vehiclePrice: {
-        alignItems: 'flex-end',
-    },
-
-    priceAmount: {
-        ...theme.textStyles.h3,
-        color: theme.colors.primary.gold,
-        fontWeight: theme.fontWeight.bold,
     },
 
     infoCard: {

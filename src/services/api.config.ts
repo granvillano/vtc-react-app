@@ -74,14 +74,24 @@ export const API_ENDPOINTS = {
 /**
  * Helper para construir URLs completas
  */
-export const buildUrl = (endpoint: string, params?: Record<string, string>): string => {
+export const buildUrl = (endpoint: string, params?: Record<string, string | number>): string => {
     let url = `${API_CONFIG.BASE_URL}${endpoint}`;
+    const query: string[] = [];
 
-    // Reemplazar parámetros en la URL (:id, etc.)
     if (params) {
         Object.entries(params).forEach(([key, value]) => {
-            url = url.replace(`:${key}`, value);
+            const placeholder = `:${key}`;
+            const valueStr = String(value);
+            if (url.includes(placeholder)) {
+                url = url.replace(placeholder, encodeURIComponent(valueStr));
+            } else {
+                query.push(`${encodeURIComponent(key)}=${encodeURIComponent(valueStr)}`);
+            }
         });
+    }
+
+    if (query.length > 0) {
+        url += `?${query.join('&')}`;
     }
 
     return url;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, FlatList, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -7,6 +7,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { theme } from '../theme';
 import { Input, Card } from '../components/common';
 import { RootStackParamList, LocationCoordinates } from '../types/navigation';
+import { MapboxFeature, searchPlaces } from '../services';
+const BASE_ORIGIN_LABEL = 'Base central VTC Premium Navarra';
 
 type SearchDestinationNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -23,44 +25,74 @@ interface LocationSuggestion {
  */
 export const SearchDestinationScreen: React.FC = () => {
     const navigation = useNavigation<SearchDestinationNavigationProp>();
-    const [origin, setOrigin] = useState('');
+    const [origin, setOrigin] = useState(BASE_ORIGIN_LABEL);
     const [destination, setDestination] = useState('');
     const [focusedField, setFocusedField] = useState<'origin' | 'destination'>('destination');
+    const [originCoords] = useState<LocationCoordinates | null>({ latitude: 0, longitude: 0 });
+    const [destinationCoords, setDestinationCoords] = useState<LocationCoordinates | null>(null);
+    const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+    const [loading, setLoading] = useState(false);
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // Mock de sugerencias (en producción vendrían de Google Places API o similar)
-    const suggestions: LocationSuggestion[] = [
-        {
-            id: '1',
-            address: 'Aeropuerto Adolfo Suárez Madrid-Barajas',
-            description: 'Terminal T4, Madrid',
-            coordinates: { latitude: 40.4719, longitude: -3.5626 },
+    const mapFeatureToSuggestion = (feature: MapboxFeature, idx: number): LocationSuggestion => ({
+        id: feature.id || `${feature.place_name}-${idx}`,
+        address: feature.text || feature.place_name,
+        description: feature.place_name,
+        coordinates: {
+            latitude: feature.center[1],
+            longitude: feature.center[0],
         },
-        {
-            id: '2',
-            address: 'Estación de Atocha',
-            description: 'Glorieta del Emperador Carlos V, Madrid',
-            coordinates: { latitude: 40.4069, longitude: -3.692 },
-        },
-        {
-            id: '3',
-            address: 'Gran Vía',
-            description: 'Centro, Madrid',
-            coordinates: { latitude: 40.42, longitude: -3.7066 },
-        },
-    ];
+    });
 
-    const handleSuggestionPress = (suggestion: LocationSuggestion) => {
-        if (focusedField === 'origin') {
-            setOrigin(suggestion.address);
-        } else {
-            setDestination(suggestion.address);
+    const currentQuery = focusedField === 'origin' ? origin : destination;
+
+    useEffect(() => {
+        if (debounceRef.current) {
+            clearTimeout(debounceRef.current);
         }
 
-        // Si ambos campos están llenos, navegar a TripPreview
-        if (origin && destination) {
+        if (!currentQuery || currentQuery.length < 3) {
+            setSuggestions([]);
+            return;
+        }
+
+        debounceRef.current = setTimeout(async () => {
+            try {
+                setLoading(true);
+                const results = await searchPlaces(currentQuery);
+                const mapped = results.map(mapFeatureToSuggestion);
+                setSuggestions(mapped);
+            } catch (error) {
+                console.error('❌ Error cargando sugerencias', error);
+                setSuggestions([]);
+            } finally {
+                setLoading(false);
+            }
+        }, 300);
+
+        return () => {
+            if (debounceRef.current) {
+                clearTimeout(debounceRef.current);
+            }
+        };
+    }, [currentQuery, focusedField]);
+
+    const handleSuggestionPress = (suggestion: LocationSuggestion) => {
+        if (focusedField === 'destination') {
+            setDestination(suggestion.address);
+            setDestinationCoords(suggestion.coordinates);
+        }
+
+        const nextOrigin = origin;
+        const nextOriginCoords = originCoords;
+        const nextDestination = focusedField === 'destination' ? suggestion.address : destination;
+        const nextDestinationCoords =
+            focusedField === 'destination' ? suggestion.coordinates : destinationCoords;
+
+        if (nextOrigin && nextDestination && nextOriginCoords && nextDestinationCoords) {
             navigation.navigate('TripPreview', {
-                origin: { latitude: 40.4168, longitude: -3.7038, address: origin },
-                destination: suggestion.coordinates,
+                origin: { ...nextOriginCoords, address: nextOrigin },
+                destination: { ...nextDestinationCoords, address: nextDestination },
             });
         }
     };
@@ -106,8 +138,7 @@ export const SearchDestinationScreen: React.FC = () => {
                     <Input
                         placeholder="Origen"
                         value={origin}
-                        onChangeText={setOrigin}
-                        onFocus={() => setFocusedField('origin')}
+                        editable={false}
                         containerStyle={styles.input}
                     />
                 </View>
@@ -119,7 +150,10 @@ export const SearchDestinationScreen: React.FC = () => {
                     <Input
                         placeholder="Destino"
                         value={destination}
-                        onChangeText={setDestination}
+                        onChangeText={(text) => {
+                            setDestination(text);
+                            setDestinationCoords(null);
+                        }}
                         onFocus={() => setFocusedField('destination')}
                         containerStyle={styles.input}
                         autoFocus
@@ -136,6 +170,15 @@ export const SearchDestinationScreen: React.FC = () => {
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.suggestionsList}
                     showsVerticalScrollIndicator={false}
+                    ListEmptyComponent={
+                        loading ? (
+                            <Text style={styles.emptyText}>Buscando...</Text>
+                        ) : currentQuery.length >= 3 ? (
+                            <Text style={styles.emptyText}>Sin resultados</Text>
+                        ) : (
+                            <Text style={styles.emptyText}>Escribe al menos 3 caracteres</Text>
+                        )
+                    }
                 />
             </View>
         </SafeAreaView>
@@ -212,6 +255,24 @@ const styles = StyleSheet.create({
         marginVertical: theme.spacing.xs,
     },
 
+    myLocationButton: {
+        alignSelf: 'flex-start',
+        marginTop: theme.spacing.xs,
+        marginBottom: theme.spacing.sm,
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.xs,
+        backgroundColor: theme.colors.background.secondary,
+        borderRadius: theme.borderRadius.md,
+        borderWidth: 1,
+        borderColor: theme.colors.border.light,
+    },
+
+    myLocationText: {
+        ...theme.textStyles.caption,
+        color: theme.colors.text.primary,
+        fontWeight: theme.fontWeight.semibold,
+    },
+
     suggestionsContainer: {
         flex: 1,
         paddingHorizontal: theme.spacing.lg,
@@ -258,5 +319,12 @@ const styles = StyleSheet.create({
     suggestionDescription: {
         ...theme.textStyles.caption,
         color: theme.colors.text.tertiary,
+    },
+
+    emptyText: {
+        ...theme.textStyles.caption,
+        color: theme.colors.text.tertiary,
+        textAlign: 'center',
+        paddingVertical: theme.spacing.md,
     },
 });

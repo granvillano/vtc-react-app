@@ -7,12 +7,18 @@
 
 import { apiClient } from './apiClient';
 
+interface MapboxProxyResponse<T> {
+    success?: boolean;
+    data?: T;
+}
+
 export interface Coordinates {
     latitude: number;
     longitude: number;
 }
 
 export interface MapboxFeature {
+    id?: string;
     place_name: string;
     center: [number, number]; // [longitude, latitude]
     place_type: string[];
@@ -36,15 +42,20 @@ export async function geocodeAddress(
         console.log('🔍 Geocoding:', address, '- types:', types);
 
         // Llamar al endpoint WordPress que hace de proxy
-        const response = await apiClient.get<{ features: MapboxFeature[] }>('/mapbox/geocode', {
-            params: {
-                address,
-                types,
-            },
-        });
+        const response = await apiClient.get<MapboxProxyResponse<{ features: MapboxFeature[] }>>(
+            '/mapbox/geocode',
+            {
+                params: {
+                    address,
+                    types,
+                },
+            }
+        );
 
-        if (response.features?.length > 0) {
-            const [longitude, latitude] = response.features[0].center;
+        const features = response.data?.features || (response as any)?.features;
+
+        if (features?.length > 0) {
+            const [longitude, latitude] = features[0].center;
             console.log('✅ Coordenadas:', { latitude, longitude });
             return { latitude, longitude };
         }
@@ -70,15 +81,20 @@ export async function searchPlaces(
 
         console.log('🔍 Buscando lugares:', query);
 
-        const response = await apiClient.get<{ features: MapboxFeature[] }>('/mapbox/search', {
-            params: {
-                query,
-                types,
-                limit: '5',
-            },
-        });
+        const response = await apiClient.get<MapboxProxyResponse<{ features: MapboxFeature[] }>>(
+            '/mapbox/search',
+            {
+                params: {
+                    query,
+                    types,
+                    limit: '5',
+                },
+            }
+        );
 
-        return response.features || [];
+        const features = response.data?.features || (response as any)?.features;
+
+        return features || [];
     } catch (error) {
         console.error('❌ Error buscando lugares:', error);
         return [];
@@ -96,9 +112,9 @@ export async function getDistanceBetweenCoordinates(
     try {
         console.log('🚗 Calculando distancia entre coordenadas...');
 
-        const response = await apiClient.get<{
-            routes: Array<{ distance: number; duration: number }>;
-        }>('/mapbox/directions', {
+        const response = await apiClient.get<
+            MapboxProxyResponse<{ routes: Array<{ distance: number; duration: number }> }>
+        >('/mapbox/directions', {
             params: {
                 from_lat: from.latitude.toString(),
                 from_lon: from.longitude.toString(),
@@ -107,8 +123,10 @@ export async function getDistanceBetweenCoordinates(
             },
         });
 
-        if (response.routes?.length > 0) {
-            const route = response.routes[0];
+        const routes = response.data?.routes || (response as any)?.routes;
+
+        if (routes?.length > 0) {
+            const route = routes[0];
             const distanceKm = route.distance / 1000; // metros a km
             const durationMin = Math.ceil(route.duration / 60); // segundos a minutos
 

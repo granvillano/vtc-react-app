@@ -53,6 +53,7 @@ interface TripEstimateRequest {
     pickupTime: string;
     numberOfPassengers: number;
     serviceType: ServiceType;
+    numberOfHours?: number;
     supplements?: string[];
 }
 
@@ -60,24 +61,20 @@ interface TripEstimateResponse {
     success: boolean;
     data: {
         distances: {
-            distanceBaseToPickup: number;
-            distancePickupToDestination: number;
-            distanceDestinationToBase: number;
-            totalDistance: number;
-            estimatedDuration: number;
+            distanceBaseToPickup?: number;
+            distanceTripKm?: number;
+            distancePickupToDestination?: number;
+            distanceDestinationToBase?: number;
+            distanceBaseToDestination?: number;
+            totalDistance?: number;
+            estimatedDuration?: number;
+            estimatedDurationMin?: number;
         };
         pricing: {
-            tariffUsed: {
-                id: number;
-                name: string;
-            };
-            baseFare: number;
-            distanceCharges: number;
-            supplements: Array<{ name: string; amount: number }>;
-            subtotal: number;
-            iva: number;
-            total: number;
-            deposit: number;
+            baseTariff?: string;
+            horario?: string;
+            distanceAppliedKm?: number;
+            total?: number;
             priceBreakdown: Array<{ concept: string; amount: string | number }>;
         };
     };
@@ -99,6 +96,7 @@ export const tripService = {
                 pickup_time: data.pickupTime,
                 number_of_passengers: data.numberOfPassengers,
                 service_type: data.serviceType,
+                number_of_hours: data.numberOfHours,
                 supplements: data.supplements || [],
             });
 

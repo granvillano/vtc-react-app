@@ -5,7 +5,7 @@ import { API_CONFIG, buildUrl, API_ENDPOINTS, APIError } from './api.config';
  */
 
 interface RequestOptions extends RequestInit {
-    params?: Record<string, string>;
+    params?: Record<string, string | number>;
     timeout?: number;
 }
 
