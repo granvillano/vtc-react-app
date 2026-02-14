@@ -19,8 +19,9 @@ export const ConfirmReservationModal: React.FC<Props> = ({
 }) => (
     <Modal
         visible={visible}
-        transparent
+        transparent={false}
         animationType="fade"
+        presentationStyle="overFullScreen"
         onRequestClose={onCancel}
     >
         <View style={styles.confirmModalOverlay}>

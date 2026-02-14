@@ -64,6 +64,10 @@ export const Input = forwardRef<TextInput, InputProps>(
                     <TextInput
                         ref={ref}
                         style={inputStyles as any}
+                        editable={editable}
+                        focusable={editable}
+                        showSoftInputOnFocus={editable}
+                        selectTextOnFocus={editable}
                         {...props}
                     />
 

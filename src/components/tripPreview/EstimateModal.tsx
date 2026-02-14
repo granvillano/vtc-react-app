@@ -1,8 +1,9 @@
 import React from 'react';
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Text, TouchableOpacity, View, ScrollView } from 'react-native';
 
 import { ServiceType } from '../../services/tripService';
 import { Card, Button } from '../common';
+import { EstimatePriceBox } from './EstimatePriceBox';
 import { tripPreviewStyles as styles } from '../../screens/styles/tripPreviewStyles';
 
 type Props = {
@@ -14,143 +15,293 @@ type Props = {
     horario?: string;
     distanceAppliedKm?: number;
     tripInfo: { distance: string; duration: string };
-    passengerCount: number;
-    serviceType: ServiceType;
-    hoursNeeded: number;
-    formatCurrency: (amount: string | number | undefined | null) => string;
+    destinationLabel?: string;
+    passengerCount?: number;
+    serviceType?: ServiceType;
+    hoursNeeded?: string | number;
     pickupDate?: string;
     pickupTime?: string;
-    destinationLabel?: string;
-};
-
-const serviceTypeLabel: Record<ServiceType, string> = {
-    one_way: 'Solo ida',
-    round_trip: 'Ida y vuelta',
-    hourly: 'Por horas',
-    daily: 'Por días',
+    formatCurrency?: (amount: string | number | undefined | null) => string;
 };
 
 export const EstimateModal: React.FC<Props> = ({
     visible,
     onClose,
+    onConfirm,
     total,
     baseTariff,
     horario,
     distanceAppliedKm,
     tripInfo,
-    passengerCount,
-    serviceType,
-    hoursNeeded,
-    formatCurrency,
-    onConfirm,
-    pickupDate,
-    pickupTime,
     destinationLabel,
-}) => (
-    <Modal
-        visible={visible}
-        transparent
-        animationType="fade"
-        onRequestClose={onClose}
-    >
-        <View style={styles.estimateModalOverlay}>
-            <Card
-                variant="default"
-                padding="lg"
-                style={styles.estimateModalCard}
-            >
-                <View style={styles.estimateModalHeader}>
-                    <Text style={styles.estimateModalTitle}>Confirmación viaje</Text>
-                    <TouchableOpacity
-                        onPress={onClose}
-                        style={styles.estimateModalClose}
-                        accessibilityLabel="Cerrar"
-                    >
-                        <Text style={styles.estimateModalCloseText}>✕</Text>
-                    </TouchableOpacity>
-                </View>
+    passengerCount = 1,
+    serviceType = '' as ServiceType,
+    hoursNeeded = '',
+    pickupDate = '',
+    pickupTime = '',
+    formatCurrency = (n) => (n ? n.toString() : ''),
+}) => {
+    const serviceTypeLabel: Record<string, string> = {};
 
-                <View style={styles.estimateStats}>
-                    <View style={styles.estimateStatRow}>
-                        <Text style={styles.estimateStatLabel}>Total estimado</Text>
-                        <Text style={styles.estimateStatValueGold}>{formatCurrency(total)}</Text>
-                    </View>
-                    <View style={styles.estimateStatRow}>
-                        <Text style={styles.estimateStatLabel}>Distancia</Text>
-                        <Text style={styles.estimateStatValue}>{tripInfo.distance}</Text>
-                    </View>
-                    <View style={styles.estimateStatRow}>
-                        <Text style={styles.estimateStatLabel}>Duración</Text>
-                        <Text style={styles.estimateStatValue}>{tripInfo.duration}</Text>
-                    </View>
-                    {pickupDate ? (
-                        <View style={styles.estimateStatRow}>
-                            <Text style={styles.estimateStatLabel}>Fecha</Text>
-                            <Text style={styles.estimateStatValue}>{pickupDate}</Text>
-                        </View>
-                    ) : null}
-                    {pickupTime ? (
-                        <View style={styles.estimateStatRow}>
-                            <Text style={styles.estimateStatLabel}>Hora de salida</Text>
-                            <Text style={styles.estimateStatValue}>{`${pickupTime} H`}</Text>
-                        </View>
-                    ) : null}
-                    {destinationLabel ? (
-                        <View style={styles.estimateStatRow}>
-                            <Text style={styles.estimateStatLabel}>Destino</Text>
-                            <Text style={styles.estimateStatValueLong}>{destinationLabel}</Text>
-                        </View>
-                    ) : null}
-                    <View style={styles.estimateStatRow}>
-                        <Text style={styles.estimateStatLabel}>Pasajeros</Text>
-                        <Text style={styles.estimateStatValue}>{passengerCount}</Text>
-                    </View>
-                    <View style={styles.estimateStatRow}>
-                        <Text style={styles.estimateStatLabel}>Servicio</Text>
-                        <Text style={styles.estimateStatValue}>
-                            {serviceTypeLabel[serviceType]}
-                        </Text>
-                    </View>
-                    {serviceType === 'hourly' ? (
-                        <View style={styles.estimateStatRow}>
-                            <Text style={styles.estimateStatLabel}>Horas</Text>
-                            <Text style={styles.estimateStatValue}>{hoursNeeded}</Text>
-                        </View>
-                    ) : null}
-                    {baseTariff ? (
-                        <View style={styles.estimateStatRow}>
-                            <Text style={styles.estimateStatLabel}>Tarifa</Text>
-                            <Text style={styles.estimateStatValueLong}>{baseTariff}</Text>
-                        </View>
-                    ) : null}
-                    {horario ? (
-                        <View style={styles.estimateStatRow}>
-                            <Text style={styles.estimateStatLabel}>Horario</Text>
-                            <Text style={styles.estimateStatValueLong}>{horario}</Text>
-                        </View>
-                    ) : null}
-                    {distanceAppliedKm ? (
-                        <View style={styles.estimateStatRow}>
-                            <Text style={styles.estimateStatLabel}>Km aplicados</Text>
-                            <Text style={styles.estimateStatValue}>
-                                {distanceAppliedKm.toFixed(2)} km
+    return (
+        <Modal
+            visible={visible}
+            transparent
+            animationType="fade"
+            onRequestClose={onClose}
+        >
+            <View style={styles.estimateModalOverlay}>
+                <View style={styles.estimateModalCard}>
+                    <View style={{ width: '100%', alignItems: 'flex-end', marginBottom: 8 }}>
+                        <TouchableOpacity
+                            onPress={onClose}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <Text
+                                style={{
+                                    fontSize: 28,
+                                    color: '#888',
+                                    fontWeight: 'bold',
+                                    padding: 0,
+                                    margin: 0,
+                                }}
+                            >
+                                ✕
                             </Text>
+                        </TouchableOpacity>
+                    </View>
+                    <ScrollView
+                        contentContainerStyle={{ flexGrow: 1 }}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        <View style={[styles.estimateStats, { marginBottom: 24 }]}>
+                            {destinationLabel ? (
+                                <>
+                                    <Text
+                                        style={{
+                                            fontSize: 18,
+                                            color: '#888',
+                                            fontWeight: '400',
+                                            textAlign: 'center',
+                                            marginBottom: 4,
+                                        }}
+                                    >
+                                        Descripción
+                                    </Text>
+                                    <View style={styles.estimateStatRow}>
+                                        <Text
+                                            style={[
+                                                styles.estimateStatLabel,
+                                                { color: '#888', fontWeight: '400', minWidth: 80 },
+                                            ]}
+                                        >
+                                            Destino
+                                        </Text>
+                                        <Text
+                                            style={[
+                                                styles.estimateDestinationValue,
+                                                {
+                                                    color: '#888',
+                                                    flex: 1,
+                                                    textAlign: 'left',
+                                                    flexWrap: 'wrap',
+                                                    fontWeight: '400',
+                                                },
+                                            ]}
+                                            numberOfLines={2}
+                                            ellipsizeMode="tail"
+                                        >
+                                            {destinationLabel}
+                                        </Text>
+                                    </View>
+                                </>
+                            ) : null}
+                            {pickupDate ? (
+                                <View style={styles.estimateStatRow}>
+                                    <Text
+                                        style={[
+                                            styles.estimateStatLabel,
+                                            { color: '#888', fontWeight: '400' },
+                                        ]}
+                                    >
+                                        Fecha
+                                    </Text>
+                                    <Text
+                                        style={[
+                                            styles.estimateStatValue,
+                                            { color: '#888', fontWeight: '400' },
+                                        ]}
+                                    >
+                                        {pickupDate}
+                                    </Text>
+                                </View>
+                            ) : null}
+                            {pickupTime ? (
+                                <View style={styles.estimateStatRow}>
+                                    <Text
+                                        style={[
+                                            styles.estimateStatLabel,
+                                            { color: '#888', fontWeight: '400' },
+                                        ]}
+                                    >
+                                        Hora de salida
+                                    </Text>
+                                    <Text
+                                        style={[
+                                            styles.estimateStatValue,
+                                            { color: '#888', fontWeight: '400' },
+                                        ]}
+                                    >
+                                        {pickupTime} H
+                                    </Text>
+                                </View>
+                            ) : null}
+                            <View style={styles.estimateStatRow}>
+                                <Text
+                                    style={[
+                                        styles.estimateStatLabel,
+                                        { color: '#888', fontWeight: '400' },
+                                    ]}
+                                >
+                                    Distancia
+                                </Text>
+                                <Text
+                                    style={[
+                                        styles.estimateStatValue,
+                                        { color: '#888', fontWeight: '400' },
+                                    ]}
+                                >
+                                    {tripInfo.distance}
+                                </Text>
+                            </View>
+                            <View style={styles.estimateStatRow}>
+                                <Text
+                                    style={[
+                                        styles.estimateStatLabel,
+                                        { color: '#888', fontWeight: '400' },
+                                    ]}
+                                >
+                                    Duración
+                                </Text>
+                                <Text
+                                    style={[
+                                        styles.estimateStatValue,
+                                        { color: '#888', fontWeight: '400' },
+                                    ]}
+                                >
+                                    {tripInfo.duration}
+                                </Text>
+                            </View>
+                            <View style={styles.estimateStatRow}>
+                                <Text
+                                    style={[
+                                        styles.estimateStatLabel,
+                                        { color: '#888', fontWeight: '400' },
+                                    ]}
+                                >
+                                    Pasajeros
+                                </Text>
+                                <Text
+                                    style={[
+                                        styles.estimateStatValue,
+                                        { color: '#888', fontWeight: '400' },
+                                    ]}
+                                >
+                                    {passengerCount}
+                                </Text>
+                            </View>
+                            <View style={styles.estimateStatRow}>
+                                <Text
+                                    style={[
+                                        styles.estimateStatLabel,
+                                        { color: '#888', fontWeight: '400' },
+                                    ]}
+                                >
+                                    Servicio
+                                </Text>
+                                <Text
+                                    style={[
+                                        styles.estimateStatValue,
+                                        { color: '#888', fontWeight: '400' },
+                                    ]}
+                                >
+                                    {serviceTypeLabel[serviceType] || serviceType}
+                                </Text>
+                            </View>
+                            {baseTariff ? (
+                                <View style={styles.estimateStatRow}>
+                                    <Text
+                                        style={[
+                                            styles.estimateStatLabel,
+                                            { color: '#888', fontWeight: '400' },
+                                        ]}
+                                    >
+                                        Tarifa
+                                    </Text>
+                                    <Text
+                                        style={[
+                                            styles.estimateStatValueLong,
+                                            { color: '#888', fontWeight: '400' },
+                                        ]}
+                                    >
+                                        {baseTariff}
+                                    </Text>
+                                </View>
+                            ) : null}
+                            {horario ? (
+                                <View style={styles.estimateStatRow}>
+                                    <Text
+                                        style={[
+                                            styles.estimateStatLabel,
+                                            { color: '#888', fontWeight: '400' },
+                                        ]}
+                                    >
+                                        Horario
+                                    </Text>
+                                    <Text
+                                        style={[
+                                            styles.estimateStatValueLong,
+                                            { color: '#888', fontWeight: '400' },
+                                        ]}
+                                    >
+                                        {horario}
+                                    </Text>
+                                </View>
+                            ) : null}
+                            {distanceAppliedKm ? (
+                                <View style={styles.estimateStatRow}>
+                                    <Text
+                                        style={[
+                                            styles.estimateStatLabel,
+                                            { color: '#888', fontWeight: '400' },
+                                        ]}
+                                    >
+                                        Km aplicados
+                                    </Text>
+                                    <Text
+                                        style={[
+                                            styles.estimateStatValue,
+                                            { color: '#888', fontWeight: '400' },
+                                        ]}
+                                    >
+                                        {distanceAppliedKm.toFixed(2)} km
+                                    </Text>
+                                </View>
+                            ) : null}
                         </View>
-                    ) : null}
+                        <EstimatePriceBox
+                            total={total}
+                            formatCurrency={formatCurrency}
+                        />
+                        <Button
+                            title="Reservar"
+                            variant="primary"
+                            onPress={onConfirm}
+                            style={styles.estimateModalButton}
+                        />
+                    </ScrollView>
                 </View>
-
-                <Button
-                    title="Reservar"
-                    variant="primary"
-                    onPress={onConfirm}
-                    style={styles.estimateModalButton}
-                />
-                <Button
-                    title="Cerrar"
-                    variant="secondary"
-                    onPress={onClose}
-                />
-            </Card>
-        </View>
-    </Modal>
-);
+            </View>
+        </Modal>
+    );
+};

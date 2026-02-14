@@ -78,14 +78,16 @@ export const SearchDestinationScreen: React.FC = () => {
     }, [currentQuery, focusedField]);
 
     const handleSuggestionPress = (suggestion: LocationSuggestion) => {
+        const selectedLabel = suggestion.description || suggestion.address;
+
         if (focusedField === 'destination') {
-            setDestination(suggestion.address);
+            setDestination(selectedLabel);
             setDestinationCoords(suggestion.coordinates);
         }
 
         const nextOrigin = origin;
         const nextOriginCoords = originCoords;
-        const nextDestination = focusedField === 'destination' ? suggestion.address : destination;
+        const nextDestination = focusedField === 'destination' ? selectedLabel : destination;
         const nextDestinationCoords =
             focusedField === 'destination' ? suggestion.coordinates : destinationCoords;
 
@@ -117,16 +119,20 @@ export const SearchDestinationScreen: React.FC = () => {
     );
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView
+            style={styles.container}
+            edges={['top', 'right', 'bottom', 'left']}
+        >
             <StatusBar barStyle="light-content" />
 
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity
                     style={styles.backButton}
+                    accessibilityLabel="Volver"
                     onPress={() => navigation.goBack()}
                 >
-                    <Text style={styles.backButtonText}>←</Text>
+                    <Text style={styles.backButtonText}>{'<'}</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Planificar viaje</Text>
             </View>
@@ -201,16 +207,17 @@ const styles = StyleSheet.create({
     },
 
     backButton: {
-        width: 40,
-        height: 40,
+        width: 48,
+        height: 48,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: theme.spacing.md,
     },
 
     backButtonText: {
-        fontSize: theme.fontSize['2xl'],
+        fontSize: theme.fontSize['3xl'],
         color: theme.colors.primary.gold,
+        fontWeight: theme.fontWeight.semibold,
     },
 
     headerTitle: {

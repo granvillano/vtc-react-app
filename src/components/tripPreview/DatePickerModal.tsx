@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, Text, View } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 import { Button, Card } from '../common';
 import { tripPreviewStyles as styles } from '../../screens/styles/tripPreviewStyles';
@@ -11,7 +11,7 @@ type Props = {
     value: Date;
     draft: Date | null;
     onChangeDraft: (date?: Date) => void;
-    onConfirm: () => void;
+    onConfirm: (selectedDate?: Date | null) => void;
     onClose: () => void;
 };
 
@@ -40,7 +40,17 @@ export const DatePickerModal: React.FC<Props> = ({
                     value={draft || value}
                     mode="date"
                     display="spinner"
-                    onChange={(_event, selectedDate) => onChangeDraft(selectedDate)}
+                    onChange={(event: DateTimePickerEvent, selectedDate) => {
+                        console.log('📅 DatePicker change', {
+                            type: event.type,
+                            selected: selectedDate?.toISOString?.(),
+                        });
+                        if (event.type === 'dismissed') {
+                            onClose();
+                            return;
+                        }
+                        onConfirm(selectedDate);
+                    }}
                     minimumDate={new Date()}
                     textColor={theme.colors.text.primary}
                 />
@@ -48,7 +58,7 @@ export const DatePickerModal: React.FC<Props> = ({
                 <Button
                     title="Seleccionar"
                     variant="secondary"
-                    onPress={onConfirm}
+                    onPress={() => onConfirm(draft || value)}
                     style={styles.timePickerClose}
                 />
             </Card>

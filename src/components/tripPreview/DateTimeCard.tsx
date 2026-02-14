@@ -37,6 +37,7 @@ export const DateTimeCard: React.FC<Props> = ({
                         editable={false}
                         pointerEvents="none"
                         placeholder="YYYY-MM-DD"
+                        placeholderTextColor={styles.placeholderText?.color || '#999'}
                     />
                 </TouchableOpacity>
             </View>
@@ -52,6 +53,7 @@ export const DateTimeCard: React.FC<Props> = ({
                         editable={false}
                         pointerEvents="none"
                         placeholder="HH:MM"
+                        placeholderTextColor={styles.placeholderText?.color || '#999'}
                     />
                 </TouchableOpacity>
             </View>

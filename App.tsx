@@ -24,18 +24,31 @@ if (typeof global !== 'undefined') {
         }
     };
 }
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
+import * as NavigationBar from 'expo-navigation-bar';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { AuthProvider } from './src/contexts/AuthContext';
+import { theme } from './src/theme';
 
 /**
  * VTC Premium - Aplicación móvil de transporte VTC
  * Arquitectura profesional con React Native + Expo
  */
 export default function App() {
+    useEffect(() => {
+        if (Platform.OS === 'android') {
+            NavigationBar.setBackgroundColorAsync(theme.colors.background.primary).catch(() => {
+                // no-op
+            });
+            NavigationBar.setButtonStyleAsync('light').catch(() => {
+                // no-op
+            });
+        }
+    }, []);
+
     return (
         <AuthProvider>
             <GestureHandlerRootView style={styles.container}>

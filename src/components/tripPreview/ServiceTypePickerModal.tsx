@@ -9,18 +9,21 @@ import {
     NativeSyntheticEvent,
 } from 'react-native';
 
-import { Button, Card } from '../common';
+import { Card, Button } from '../common';
 import { tripPreviewStyles as styles } from '../../screens/styles/tripPreviewStyles';
+import { ServiceType } from '../../services/tripService';
+
+type Option = { value: ServiceType; label: string };
 
 type Props = {
     visible: boolean;
-    options: number[];
-    selected: number;
-    onSelect: (value: number) => void;
+    options: Option[];
+    selected: ServiceType;
+    onSelect: (value: ServiceType) => void;
     onClose: () => void;
 };
 
-export const PassengersPickerModal: React.FC<Props> = ({
+export const ServiceTypePickerModal: React.FC<Props> = ({
     visible,
     options,
     selected,
@@ -28,10 +31,10 @@ export const PassengersPickerModal: React.FC<Props> = ({
     onClose,
 }) => {
     const ITEM_HEIGHT = 42;
-    const listRef = useRef<FlatList<number>>(null);
+    const listRef = useRef<FlatList<Option>>(null);
 
     const selectedIndex = useMemo(
-        () => options.findIndex((o) => o === selected),
+        () => options.findIndex((o) => o.value === selected),
         [options, selected]
     );
 
@@ -50,22 +53,20 @@ export const PassengersPickerModal: React.FC<Props> = ({
         const index = Math.round(offsetY / ITEM_HEIGHT);
         const bounded = Math.min(options.length - 1, Math.max(0, index));
         const option = options[bounded];
-        if (option !== undefined && option !== selected) {
-            onSelect(option);
+        if (option && option.value !== selected) {
+            onSelect(option.value);
         }
     };
 
-    const renderItem = ({ item }: { item: number }) => {
-        const isSelected = item === selected;
+    const renderItem = ({ item }: { item: Option }) => {
+        const isSelected = item.value === selected;
         return (
             <TouchableOpacity
                 style={[styles.timeOption, isSelected && styles.timeOptionSelected]}
-                onPress={() => onSelect(item)}
+                onPress={() => onSelect(item.value)}
                 activeOpacity={0.7}
             >
-                <Text style={styles.timeOptionText}>
-                    {item} {item === 1 ? 'pasajero' : 'pasajeros'}
-                </Text>
+                <Text style={styles.timeOptionText}>{item.label}</Text>
             </TouchableOpacity>
         );
     };
@@ -84,16 +85,16 @@ export const PassengersPickerModal: React.FC<Props> = ({
                     style={styles.timePickerModal}
                 >
                     <View style={styles.sheetHandle} />
-                    <Text style={styles.sectionTitle}>Selecciona pasajeros</Text>
+                    <Text style={styles.sectionTitle}>Selecciona el servicio</Text>
                     <Text style={styles.sheetSubtitle}>
-                        Actual: {selected} {selected === 1 ? 'pasajero' : 'pasajeros'}
+                        Actual: {options.find((o) => o.value === selected)?.label || '—'}
                     </Text>
 
                     <View style={styles.pickerContainer}>
                         <FlatList
                             ref={listRef}
                             data={options}
-                            keyExtractor={(item) => item.toString()}
+                            keyExtractor={(item) => item.value}
                             renderItem={renderItem}
                             showsVerticalScrollIndicator={false}
                             snapToInterval={ITEM_HEIGHT}

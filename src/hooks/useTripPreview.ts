@@ -37,15 +37,15 @@ export const useTripPreview = ({ origin, destination }: UseTripPreviewParams) =>
     const [loadingEstimate, setLoadingEstimate] = useState(false);
     const [estimateError, setEstimateError] = useState<string | null>(null);
     const [baseOrigin, setBaseOrigin] = useState<Coordinates | null>(null);
-    const [pickupDate, setPickupDate] = useState(() => new Date().toISOString().slice(0, 10));
-    const [pickupTime, setPickupTime] = useState(() => new Date().toTimeString().slice(0, 5));
+    const [pickupDate, setPickupDate] = useState('');
+    const [pickupTime, setPickupTime] = useState('');
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [dateDraft, setDateDraft] = useState<Date | null>(null);
     const [serviceType, setServiceType] = useState<ServiceType>('one_way');
     const [showHoursPicker, setShowHoursPicker] = useState(false);
     const [hoursNeeded, setHoursNeeded] = useState(1);
-    const [passengerCount, setPassengerCount] = useState(1);
+    const [passengerCount, setPassengerCount] = useState<number | null>(1);
     const [showPassengersPicker, setShowPassengersPicker] = useState(false);
     const [canEstimate, setCanEstimate] = useState(false);
 
@@ -230,7 +230,7 @@ export const useTripPreview = ({ origin, destination }: UseTripPreviewParams) =>
                     destination: destinationLabel,
                     pickupDate,
                     pickupTime,
-                    numberOfPassengers: passengerCount,
+                    numberOfPassengers: passengerCount || 1,
                     serviceType,
                     numberOfHours: serviceType === 'hourly' ? hoursNeeded : undefined,
                     supplements: [],
@@ -277,6 +277,7 @@ export const useTripPreview = ({ origin, destination }: UseTripPreviewParams) =>
     ]);
 
     const openDatePicker = () => {
+        console.log('📅 Abriendo selector fecha', { pickerBaseDate });
         setDateDraft(pickerBaseDate);
         setShowDatePicker(true);
     };
@@ -287,17 +288,21 @@ export const useTripPreview = ({ origin, destination }: UseTripPreviewParams) =>
         }
     };
 
-    const confirmDateSelection = () => {
-        const finalDate = dateDraft || pickerBaseDate;
-        setPickupDate(finalDate.toISOString().slice(0, 10));
-        setCanEstimate(true);
+    const confirmDateSelection = (selectedDate?: Date | null) => {
+        const finalDate = selectedDate || dateDraft || pickerBaseDate;
+        const dateString = finalDate.toISOString().slice(0, 10);
+        console.log('📅 Confirmando fecha', { finalDate: dateString });
+        setPickupDate(dateString);
+        setCanEstimate(Boolean(dateString && pickupTime && passengerCount));
         setShowDatePicker(false);
+        setDateDraft(null);
     };
 
     const openTimePicker = () => setShowTimePicker(true);
     const closeTimePicker = () => setShowTimePicker(false);
     const selectPickupTime = (time: string) => {
         setPickupTime(time);
+        setCanEstimate(Boolean(pickupDate && time && passengerCount));
         setShowTimePicker(false);
     };
 
@@ -317,6 +322,7 @@ export const useTripPreview = ({ origin, destination }: UseTripPreviewParams) =>
     const closePassengersPicker = () => setShowPassengersPicker(false);
     const selectPassengerCount = (value: number) => {
         setPassengerCount(value);
+        setCanEstimate(Boolean(pickupDate && pickupTime && value));
         setShowPassengersPicker(false);
     };
 
@@ -342,7 +348,11 @@ export const useTripPreview = ({ origin, destination }: UseTripPreviewParams) =>
         showHoursPicker,
         showPassengersPicker,
         openDatePicker,
-        closeDatePicker: () => setShowDatePicker(false),
+        closeDatePicker: () => {
+            console.log('📅 Cerrando selector fecha');
+            setShowDatePicker(false);
+            setDateDraft(null);
+        },
         updateDateDraft,
         confirmDateSelection,
         openTimePicker,

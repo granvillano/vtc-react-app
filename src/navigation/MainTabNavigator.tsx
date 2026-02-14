@@ -24,7 +24,7 @@ export const MainTabNavigator: React.FC = () => {
                 headerShown: false,
                 tabBarHideOnKeyboard: true,
                 tabBarStyle: {
-                    backgroundColor: theme.colors.background.card,
+                    backgroundColor: theme.colors.background.primary,
                     borderTopColor: theme.colors.border.light,
                     borderTopWidth: 1,
                     height: tabBarBaseHeight + tabBarBottom,

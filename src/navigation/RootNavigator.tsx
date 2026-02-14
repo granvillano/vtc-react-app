@@ -34,22 +34,21 @@ const navigationTheme = {
 export const RootNavigator: React.FC = () => {
     const { isAuthenticated, isApproved, isLoading, user } = useAuth();
 
-    // Ocultar la barra de navegación de Android y ponerla en overlay
+    // Ajustar la barra de navegación de Android al color de la app (excepto iOS)
     useEffect(() => {
         if (Platform.OS !== 'android') return;
 
-        const hideNavBar = async () => {
+        const styleNavBar = async () => {
             try {
-                await NavigationBar.setBehaviorAsync('overlay-swipe');
-                await NavigationBar.setPositionAsync('absolute');
-                await NavigationBar.setBackgroundColorAsync('transparent');
-                await NavigationBar.setVisibilityAsync('hidden');
+                // En edge-to-edge algunas llamadas no están soportadas; evitamos warnings
+                await NavigationBar.setButtonStyleAsync('light');
+                await NavigationBar.setVisibilityAsync('visible');
             } catch (error) {
                 console.warn('No se pudo ocultar la barra de navegación', error);
             }
         };
 
-        hideNavBar();
+        styleNavBar();
     }, []);
 
     // Mostrar loading mientras se verifica autenticación

@@ -2,35 +2,42 @@ import React from 'react';
 import { Text, View } from 'react-native';
 
 import { Card } from '../common';
+import { Button } from '../common/Button';
 import { tripPreviewStyles as styles } from '../../screens/styles/tripPreviewStyles';
 
 type BreakdownItem = { concept: string; amount: string | number };
 
 type Props = {
     canEstimate: boolean;
+    isLoading: boolean;
+    canReserve: boolean;
     breakdown: BreakdownItem[];
     total?: number;
     baseTariff?: string;
     horario?: string;
     distanceAppliedKm?: number;
     formatCurrency: (amount: string | number | undefined | null) => string;
+    onReserve: () => void;
 };
 
 export const PricingCard: React.FC<Props> = ({
     canEstimate,
+    isLoading,
+    canReserve,
     breakdown,
     total,
     baseTariff,
     horario,
     distanceAppliedKm,
     formatCurrency,
+    onReserve,
 }) => (
     <Card
         variant="default"
         padding="lg"
         style={styles.pricingCard}
     >
-        <Text style={styles.sectionTitle}>Estimación de precio</Text>
+        <Text style={styles.sectionTitle}>Estimación del viaje</Text>
         {!canEstimate ? (
             <Text style={styles.helperText}>Selecciona la fecha para ver el precio.</Text>
         ) : (
@@ -66,6 +73,19 @@ export const PricingCard: React.FC<Props> = ({
                 <View style={styles.totalRow}>
                     <Text style={styles.totalLabel}>Total estimado</Text>
                     <Text style={styles.totalAmount}>{formatCurrency(total)}</Text>
+                </View>
+
+                <View style={styles.pricingActions}>
+                    <Text style={styles.pricingDisclaimer}>
+                        El precio puede variar según el tráfico.
+                    </Text>
+                    <Button
+                        title="Reservar"
+                        onPress={onReserve}
+                        disabled={!canReserve}
+                        loading={isLoading}
+                        fullWidth
+                    />
                 </View>
             </>
         )}

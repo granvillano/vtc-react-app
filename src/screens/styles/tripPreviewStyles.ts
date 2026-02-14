@@ -25,6 +25,17 @@ export const tripPreviewStyles = StyleSheet.create({
         marginBottom: theme.spacing.lg,
     },
 
+    pricingActions: {
+        marginTop: theme.spacing.md,
+        gap: theme.spacing.sm,
+    },
+
+    pricingDisclaimer: {
+        ...theme.textStyles.caption,
+        color: theme.colors.text.secondary,
+        textAlign: 'center',
+    },
+
     datetimeRow: {
         flexDirection: 'row',
         alignItems: 'flex-start',
@@ -47,7 +58,39 @@ export const tripPreviewStyles = StyleSheet.create({
     },
 
     serviceCard: {
-        marginBottom: theme.spacing.lg,
+        marginBottom: theme.spacing.md,
+        paddingVertical: theme.spacing.md,
+    },
+
+    inlinePickerContainer: {
+        height: 120,
+        marginTop: theme.spacing.sm,
+        marginBottom: 0,
+        overflow: 'hidden',
+        borderRadius: theme.borderRadius.lg,
+        backgroundColor: theme.colors.background.primary,
+        width: 200,
+        alignSelf: 'center',
+    },
+    // helperText duplicado eliminado para evitar conflicto de claves
+    // pickerHighlight y sectionTitle duplicados eliminados abajo
+
+    selectRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: theme.spacing.sm,
+    },
+
+    selectLabel: {
+        ...theme.textStyles.bodySmall,
+        color: theme.colors.text.primary,
+        fontWeight: theme.fontWeight.semibold,
+    },
+
+    selectChevron: {
+        ...theme.textStyles.body,
+        color: theme.colors.primary.gold,
     },
 
     passengerCard: {
@@ -69,8 +112,8 @@ export const tripPreviewStyles = StyleSheet.create({
     },
 
     breakdownList: {
-        gap: theme.spacing.sm,
-        marginBottom: theme.spacing.md,
+        gap: theme.spacing.xs,
+        marginBottom: theme.spacing.sm,
     },
 
     breakdownRow: {
@@ -80,13 +123,13 @@ export const tripPreviewStyles = StyleSheet.create({
     },
 
     breakdownConcept: {
-        ...theme.textStyles.body,
+        ...theme.textStyles.bodySmall,
         color: theme.colors.text.primary,
         flex: 1,
     },
 
     breakdownAmount: {
-        ...theme.textStyles.body,
+        ...theme.textStyles.bodySmall,
         color: theme.colors.text.primary,
         fontWeight: theme.fontWeight.semibold,
     },
@@ -97,17 +140,17 @@ export const tripPreviewStyles = StyleSheet.create({
         alignItems: 'center',
         borderTopWidth: 1,
         borderTopColor: theme.colors.border.light,
-        paddingTop: theme.spacing.md,
+        paddingTop: theme.spacing.sm,
     },
 
     totalLabel: {
-        ...theme.textStyles.bodyLarge,
+        ...theme.textStyles.caption,
         color: theme.colors.text.primary,
         fontWeight: theme.fontWeight.semibold,
     },
 
     totalAmount: {
-        ...theme.textStyles.h4,
+        ...theme.textStyles.body,
         color: theme.colors.primary.gold,
         fontWeight: theme.fontWeight.bold,
     },
@@ -115,14 +158,14 @@ export const tripPreviewStyles = StyleSheet.create({
     serviceTypeChips: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: theme.spacing.sm,
-        marginTop: theme.spacing.md,
+        gap: theme.spacing.xs,
+        marginTop: theme.spacing.sm,
     },
 
     serviceChip: {
-        paddingVertical: theme.spacing.sm,
-        paddingHorizontal: theme.spacing.md,
-        borderRadius: theme.borderRadius.lg,
+        paddingVertical: theme.spacing.xs,
+        paddingHorizontal: theme.spacing.sm,
+        borderRadius: theme.borderRadius.md,
         borderWidth: 1,
         borderColor: theme.colors.border.light,
         backgroundColor: theme.colors.background.secondary,
@@ -135,7 +178,7 @@ export const tripPreviewStyles = StyleSheet.create({
     },
 
     serviceChipText: {
-        ...theme.textStyles.body,
+        ...theme.textStyles.bodySmall,
         color: theme.colors.text.primary,
     },
 
@@ -154,36 +197,75 @@ export const tripPreviewStyles = StyleSheet.create({
 
     timePickerModal: {
         width: '100%',
-        maxHeight: '70%',
+        maxHeight: '55%',
     },
 
-    timeList: {
-        marginTop: theme.spacing.md,
+    pickerContainer: {
+        height: 210,
+        marginTop: theme.spacing.sm,
         marginBottom: theme.spacing.md,
-    },
-
-    timeListContent: {
-        gap: theme.spacing.sm,
-        paddingBottom: theme.spacing.sm,
-    },
-
-    timeOption: {
-        paddingVertical: theme.spacing.sm,
-        paddingHorizontal: theme.spacing.md,
-        borderRadius: theme.borderRadius.md,
-        borderWidth: 1,
-        borderColor: theme.colors.border.light,
-    },
-
-    timeOptionSelected: {
-        borderColor: theme.colors.primary.gold,
+        overflow: 'hidden',
+        borderRadius: theme.borderRadius.lg,
         backgroundColor: theme.colors.background.secondary,
     },
 
-    timeOptionText: {
-        ...theme.textStyles.bodyLarge,
-        color: theme.colors.text.primary,
+    pickerHighlight: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: '50%',
+        height: 40,
+        marginTop: -20,
+        borderWidth: 0,
+        borderRadius: theme.borderRadius.md,
+        backgroundColor: 'transparent',
+    },
+
+    sheetHandle: {
+        width: 48,
+        height: 5,
+        borderRadius: 3,
+        backgroundColor: theme.colors.border.light,
+        alignSelf: 'center',
+        marginBottom: theme.spacing.sm,
+    },
+
+    sheetSubtitle: {
+        ...theme.textStyles.bodySmall,
+        color: theme.colors.text.secondary,
         textAlign: 'center',
+        marginBottom: theme.spacing.sm,
+    },
+
+    timeOption: {
+        height: 40,
+        justifyContent: 'center',
+        paddingHorizontal: 4,
+        borderRadius: theme.borderRadius.md,
+        backgroundColor: theme.colors.background.secondary,
+    },
+
+    timeOptionSelected: {
+        backgroundColor: 'transparent',
+    },
+
+    timeOptionMuted: {
+        opacity: 0.25,
+    },
+
+    timeOptionTextMuted: {
+        color: theme.colors.text.primary,
+    },
+
+    timeOptionText: {
+        ...theme.textStyles.caption,
+        color: theme.colors.text.secondary,
+        textAlign: 'center',
+    },
+
+    timeOptionTextSelected: {
+        color: theme.colors.primary.gold,
+        fontWeight: theme.fontWeight.bold,
     },
 
     timePickerClose: {
@@ -192,7 +274,7 @@ export const tripPreviewStyles = StyleSheet.create({
 
     estimateModalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        backgroundColor: '#000', // Fondo completamente opaco
         justifyContent: 'center',
         alignItems: 'center',
         padding: theme.spacing.lg,
@@ -262,6 +344,16 @@ export const tripPreviewStyles = StyleSheet.create({
         textAlign: 'right',
         flexShrink: 1,
         flexGrow: 1,
+        flexWrap: 'wrap',
+    },
+
+    estimateDestinationValue: {
+        ...theme.textStyles.bodyLarge,
+        color: theme.colors.primary.gold,
+        fontWeight: theme.fontWeight.bold,
+        textAlign: 'right',
+        flexShrink: 1,
+        flexGrow: 1,
     },
 
     estimateStatValueGold: {
@@ -305,7 +397,7 @@ export const tripPreviewStyles = StyleSheet.create({
 
     confirmModalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        backgroundColor: '#000',
         justifyContent: 'center',
         alignItems: 'center',
         padding: theme.spacing.lg,
@@ -321,11 +413,13 @@ export const tripPreviewStyles = StyleSheet.create({
         ...theme.textStyles.h4,
         color: theme.colors.text.primary,
         fontWeight: theme.fontWeight.bold,
+        textAlign: 'center',
     },
 
     confirmModalMessage: {
         ...theme.textStyles.body,
         color: theme.colors.text.secondary,
+        textAlign: 'center',
     },
 
     confirmModalActions: {
@@ -335,16 +429,17 @@ export const tripPreviewStyles = StyleSheet.create({
     },
 
     backButton: {
-        width: 40,
-        height: 40,
+        width: 48,
+        height: 48,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: theme.spacing.md,
     },
 
     backButtonText: {
-        fontSize: theme.fontSize['2xl'],
+        fontSize: theme.fontSize['3xl'],
         color: theme.colors.primary.gold,
+        fontWeight: theme.fontWeight.semibold,
     },
 
     headerTitle: {
@@ -380,6 +475,10 @@ export const tripPreviewStyles = StyleSheet.create({
         marginTop: theme.spacing.sm,
     },
 
+    placeholderText: {
+        color: theme.colors.text.tertiary,
+    },
+
     errorText: {
         ...theme.textStyles.caption,
         color: theme.colors.status.error,
@@ -410,7 +509,7 @@ export const tripPreviewStyles = StyleSheet.create({
     },
 
     routeAddress: {
-        ...theme.textStyles.body,
+        ...theme.textStyles.bodySmall,
         color: theme.colors.text.primary,
         flex: 1,
     },
@@ -436,8 +535,9 @@ export const tripPreviewStyles = StyleSheet.create({
     },
 
     tripDetailValue: {
-        ...theme.textStyles.h4,
+        ...theme.textStyles.body,
         color: theme.colors.primary.gold,
+        fontWeight: theme.fontWeight.semibold,
     },
 
     tripDetailDivider: {
@@ -447,9 +547,9 @@ export const tripPreviewStyles = StyleSheet.create({
     },
 
     sectionTitle: {
-        ...theme.textStyles.h4,
+        ...theme.textStyles.bodySmall,
         color: theme.colors.text.primary,
-        marginBottom: theme.spacing.md,
+        marginBottom: theme.spacing.xs,
     },
 
     infoCard: {

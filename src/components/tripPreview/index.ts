@@ -9,3 +9,4 @@ export { TimePickerModal } from './TimePickerModal';
 export { DatePickerModal } from './DatePickerModal';
 export { HoursPickerModal } from './HoursPickerModal';
 export { PassengersPickerModal } from './PassengersPickerModal';
+export { CalculatingOverlay } from './CalculatingOverlay';

@@ -4,8 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { theme } from '../theme';
-import { Button } from '../components/common';
 import { DatePickerModal } from '../components/tripPreview/DatePickerModal';
 import { DateTimeCard } from '../components/tripPreview/DateTimeCard';
 import { HoursCard } from '../components/tripPreview/HoursCard';
@@ -19,6 +17,7 @@ import { PricingCard } from '../components/tripPreview/PricingCard';
 import { RouteSummaryCard } from '../components/tripPreview/RouteSummaryCard';
 import { ServiceTypeCard } from '../components/tripPreview/ServiceTypeCard';
 import { TimePickerModal } from '../components/tripPreview/TimePickerModal';
+import { CalculatingOverlay } from '../components/tripPreview';
 import { RootStackParamList } from '../types/navigation';
 import { useTripPreview } from 'src/hooks/useTripPreview';
 import { tripPreviewStyles as styles } from './styles/tripPreviewStyles';
@@ -72,6 +71,8 @@ export const TripPreviewScreen: React.FC = () => {
         formatCurrency,
     } = useTripPreview({ origin, destination });
 
+    const [parentScrollEnabled, setParentScrollEnabled] = useState(true);
+
     useEffect(() => {
         if (pricingInfo.total !== undefined && !loadingEstimate && !estimateError) {
             setShowEstimateModal(true);
@@ -91,6 +92,8 @@ export const TripPreviewScreen: React.FC = () => {
         setShowConfirmModal(true);
     };
 
+    const reopenEstimateModal = () => setShowEstimateModal(true);
+
     const finalizeReservation = () => {
         setShowConfirmModal(false);
         setShowEstimateModal(false);
@@ -98,21 +101,29 @@ export const TripPreviewScreen: React.FC = () => {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView
+            style={styles.container}
+            edges={['top', 'right', 'bottom', 'left']}
+        >
             <StatusBar barStyle="light-content" />
             <View style={styles.header}>
                 <TouchableOpacity
                     style={styles.backButton}
+                    accessibilityLabel="Volver"
                     onPress={() => navigation.goBack()}
                 >
-                    <Text style={styles.backButtonText}>←</Text>
+                    <Text style={styles.backButtonText}>{'<'}</Text>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Resumen del viaje</Text>
             </View>
 
+            {loadingEstimate && canEstimate && <CalculatingOverlay />}
+
             <ScrollView
                 style={styles.content}
                 contentContainerStyle={styles.contentContainer}
+                nestedScrollEnabled
+                scrollEnabled={parentScrollEnabled}
                 showsVerticalScrollIndicator={false}
             >
                 <RouteSummaryCard
@@ -124,23 +135,26 @@ export const TripPreviewScreen: React.FC = () => {
                     error={estimateError}
                 />
 
+                <ServiceTypeCard
+                    serviceType={serviceType}
+                    options={serviceTypeOptions}
+                    onSelect={setServiceType}
+                    onInteractionStart={() => setParentScrollEnabled(false)}
+                    onInteractionEnd={() => setParentScrollEnabled(true)}
+                />
+
+                <PassengerCard
+                    passengerCount={passengerCount || 1}
+                    passengerOptions={passengerOptions}
+                    onSelect={selectPassengerCount}
+                />
+
                 <DateTimeCard
                     pickupDate={pickupDate}
                     pickupTime={pickupTime}
                     canEstimate={canEstimate}
                     onOpenDatePicker={openDatePicker}
                     onOpenTimePicker={openTimePicker}
-                />
-
-                <PassengerCard
-                    passengerCount={passengerCount}
-                    onOpenPassengersPicker={openPassengersPicker}
-                />
-
-                <ServiceTypeCard
-                    serviceType={serviceType}
-                    options={serviceTypeOptions}
-                    onChange={setServiceType}
                 />
 
                 {serviceType === 'hourly' && (
@@ -152,26 +166,24 @@ export const TripPreviewScreen: React.FC = () => {
 
                 <PricingCard
                     canEstimate={canEstimate}
+                    isLoading={loadingEstimate}
+                    canReserve={
+                        canEstimate &&
+                        !loadingEstimate &&
+                        !estimateError &&
+                        Boolean(pricingInfo.total)
+                    }
                     breakdown={pricingInfo.breakdown}
                     total={pricingInfo.total}
                     baseTariff={pricingInfo.baseTariff}
                     horario={pricingInfo.horario}
                     distanceAppliedKm={pricingInfo.distanceAppliedKm}
                     formatCurrency={formatCurrency}
+                    onReserve={reopenEstimateModal}
                 />
 
                 <InfoNoteCard />
             </ScrollView>
-
-            <View style={styles.footer}>
-                <Button
-                    title="Confirmar viaje"
-                    variant="primary"
-                    size="lg"
-                    fullWidth
-                    onPress={handleConfirmTrip}
-                />
-            </View>
 
             <TimePickerModal
                 visible={showTimePicker}
@@ -198,14 +210,6 @@ export const TripPreviewScreen: React.FC = () => {
                 onClose={closeHoursPicker}
             />
 
-            <PassengersPickerModal
-                visible={showPassengersPicker}
-                options={passengerOptions}
-                selected={passengerCount}
-                onSelect={selectPassengerCount}
-                onClose={closePassengersPicker}
-            />
-
             <EstimateModal
                 visible={showEstimateModal}
                 onClose={() => setShowEstimateModal(false)}
@@ -215,7 +219,7 @@ export const TripPreviewScreen: React.FC = () => {
                 horario={pricingInfo.horario}
                 distanceAppliedKm={pricingInfo.distanceAppliedKm}
                 tripInfo={tripInfo}
-                passengerCount={passengerCount}
+                passengerCount={passengerCount || 1}
                 serviceType={serviceType}
                 hoursNeeded={hoursNeeded}
                 formatCurrency={formatCurrency}
